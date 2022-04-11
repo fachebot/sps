@@ -1,0 +1,18 @@
+[package]
+name = "sps"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+toml = "0.4.5"
+chrono = "0.4"
+anyhow = "1.0.56"
+async-std = {version = "1", features = ["attributes"]}
+async-trait = "0.1.53"
+serde = { version = "1", features = ["derive"] }
+surf = "2.3.2"
+sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls", "macros", "postgres", "chrono" ] }
+serde_derive = "1.0.136"
+clap = { version = "3.1.8", features = ["derive"] }
