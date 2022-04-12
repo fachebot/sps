@@ -3,6 +3,11 @@ use async_std::io::ReadExt;
 use serde_derive::Deserialize;
 
 #[derive(Deserialize)]
+pub struct Server {
+    pub port: u16,
+}
+
+#[derive(Deserialize)]
 pub struct Postgres {
     pub dsn: String,
 }
@@ -14,6 +19,7 @@ pub struct Telegram {
 
 #[derive(Deserialize)]
 pub struct Config {
+    pub server: Server,
     pub postgres: Postgres,
     pub telegram: Telegram,
 }

@@ -1,3 +1,6 @@
+[server]
+port = 8888
+
 [postgres]
 dsn = "postgres://postgres:postgres@localhost:5432/sps"
 
