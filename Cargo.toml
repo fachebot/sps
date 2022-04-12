@@ -17,3 +17,6 @@ surf = "2.3.2"
 sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls", "macros", "postgres", "chrono" ] }
 serde_derive = "1.0.136"
 clap = { version = "3.1.8", features = ["derive"] }
+jwt = "0.16.0"
+hmac = "0.12.1"
+sha2 = "0.10.2"

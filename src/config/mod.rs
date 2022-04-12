@@ -2,22 +2,24 @@ use async_std::fs::File;
 use async_std::io::ReadExt;
 use serde_derive::Deserialize;
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct Server {
     pub port: u16,
+    pub access_expire: i64,
+    pub access_secret: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct Postgres {
     pub dsn: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct Telegram {
     pub token: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct Config {
     pub server: Server,
     pub postgres: Postgres,

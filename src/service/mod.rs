@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Context {
+    pub conf: Config,
     pub pool: Pool<Postgres>,
     pub message_model: Arc<model::MessageModel>,
     pub task_model: Arc<model::TaskModel>,
@@ -23,6 +24,7 @@ impl Context {
             .await?;
 
         let ctx = Context {
+            conf: c.clone(),
             pool: pool.clone(),
             message_model: Arc::new(model::MessageModel::new(&pool)),
             task_model: Arc::new(model::TaskModel::new(&pool)),
