@@ -4,6 +4,7 @@ use sqlx::{Pool, Postgres};
 pub mod state {
     pub const PENDING: &str = "pending";
     pub const RETRYING: &str = "retrying";
+    pub const FAIL: &str = "fail";
     pub const DONE: &str = "done";
 }
 

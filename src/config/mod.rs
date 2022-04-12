@@ -3,13 +3,19 @@ use async_std::io::ReadExt;
 use serde_derive::Deserialize;
 
 #[derive(Deserialize)]
-pub struct Pg {
+pub struct Postgres {
     pub dsn: String,
 }
 
 #[derive(Deserialize)]
+pub struct Telegram {
+    pub token: String,
+}
+
+#[derive(Deserialize)]
 pub struct Config {
-    pub postgres: Pg,
+    pub postgres: Postgres,
+    pub telegram: Telegram,
 }
 
 pub async fn must_load(filename: &str) -> Config {

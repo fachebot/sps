@@ -1,2 +1,5 @@
 [postgres]
 dsn = "postgres://postgres:postgres@localhost:5432/sps"
+
+[telegram]
+token = ""
