@@ -1,6 +1,6 @@
 use async_std::fs::File;
 use async_std::io::ReadExt;
-use serde_derive::Deserialize;
+use serde::Deserialize;
 
 #[derive(Clone, Deserialize)]
 pub struct Server {

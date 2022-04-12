@@ -3,13 +3,17 @@ use anyhow::Result;
 use ethers_core::types::{Address, Signature};
 use hmac::{Hmac, Mac};
 use jwt::SignWithKey;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::collections::BTreeMap;
 use tide::{Body, Request, Response};
 
+mod middleware;
 pub fn register_handlers(app: &mut tide::Server<Context>) -> Result<()> {
+    app.with(middleware::JsonResponseMiddleware::default());
+
     app.at("/api/auth").post(auth_handler);
+
     Ok(())
 }
 
@@ -33,6 +37,7 @@ fn verify_signature(address: &str, signature: &str, timestamp: i64) -> Result<()
         "I agree to connect my wallet to the simple push service. {}",
         timestamp
     );
+
     signature.verify(message, address)?;
 
     Ok(())
