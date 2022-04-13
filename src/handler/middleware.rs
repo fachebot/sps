@@ -13,7 +13,7 @@ struct JsonResponse {
     pub result: Option<Box<RawValue>>,
 }
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct JsonResponseMiddleware {}
 
 #[tide::utils::async_trait]
