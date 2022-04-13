@@ -13,7 +13,7 @@ fn verify_signature(address: &str, signature: &str, timestamp: i64) -> Result<()
     let signature = signature.parse::<Signature>()?;
 
     let message = format!(
-        "I agree to connect my wallet to the simple push service. {}",
+        "I agree to connect my wallet to the simple push service. Timestamp: {}",
         timestamp
     );
 
@@ -25,8 +25,22 @@ fn verify_signature(address: &str, signature: &str, timestamp: i64) -> Result<()
 pub async fn auth(mut req: Request<Context>) -> tide::Result {
     let data: AuthRequest = req.body_json().await?;
 
+    // Verify wallet signature
     verify_signature(&data.address, &data.signature, data.timestamp)?;
 
+    // Ensure that user record exist
+    let user_model = &req.state().user_model;
+    let result = user_model.find_one_by_wallet_address(&data.address).await;
+    if let Err(err) = result {
+        if !crate::model::is_not_found_record_err(&err) {
+            return Err(err.into());
+        }
+
+        let user = crate::model::User::new(&data.address);
+        user_model.insert(&user).await?;
+    }
+
+    // Generate JWT access token for user
     let now = chrono::Utc::now().timestamp();
     let access_expire = req.state().conf.server.access_expire;
 

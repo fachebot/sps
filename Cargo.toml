@@ -10,14 +10,16 @@ toml = "0.4.5"
 chrono = "0.4"
 tide = "0.16.0"
 anyhow = "1.0.56"
-async-std = {version = "1", features = ["attributes"]}
+async-std = {version = "1", features = [ "attributes" ]}
 async-trait = "0.1.53"
-serde = { version = "1", features = ["derive"] }
-serde_json = { version = "1.0", features = ["raw_value"] }
+serde = { version = "1", features = [ "derive" ] }
+serde_json = { version = "1.0", features = [ "raw_value" ] }
 surf = "2.3.2"
-sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls", "macros", "postgres", "chrono" ] }
-clap = { version = "3.1.8", features = ["derive"] }
+sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls", "macros", "postgres", "chrono", "uuid" ] }
+clap = { version = "3.1.8", features = [ "derive" ] }
 jwt = "0.16.0"
 hmac = "0.12.1"
 sha2 = "0.10.2"
 ethers-core = "0.6.3"
+uuid = { version = "0.8.2", features = [ "v4" ] }
+rand = "0.8.5"
