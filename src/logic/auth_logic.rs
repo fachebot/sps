@@ -33,7 +33,7 @@ pub async fn auth(mut req: Request<Context>) -> tide::Result {
     let mut claims = BTreeMap::new();
     claims.insert("iat", now.to_string());
     claims.insert("exp", (now + access_expire).to_string());
-    claims.insert("address", data.address);
+    claims.insert("username", data.address);
 
     let buf = req.state().conf.server.access_secret.as_bytes();
     let key: Hmac<Sha256> = Hmac::new_from_slice(buf).unwrap();
