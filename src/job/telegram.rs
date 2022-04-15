@@ -1,5 +1,6 @@
 use crate::model;
 use crate::service::Context;
+use crate::transport::{Telegram, Transport};
 use anyhow::{anyhow, Result};
 use async_std::task;
 use serde::{Deserialize, Serialize};
@@ -52,6 +53,7 @@ struct Poller {
     uri: String,
     ctx: Context,
     offset: i32,
+    tg_transport: Telegram,
 }
 
 impl Poller {
@@ -59,11 +61,13 @@ impl Poller {
         let base_url = &ctx.conf.telegram.url;
         let access_token = &ctx.conf.telegram.token;
         let uri = format!("{}bot{}/getUpdates", base_url, access_token);
+        let tg_transport = Telegram::new(base_url.as_str(), access_token.as_str());
 
         Poller {
             ctx,
             uri,
             offset: 0,
+            tg_transport,
         }
     }
 
@@ -118,6 +122,7 @@ impl Poller {
         }
 
         let open_id = &text["/start ".len()..];
+        let chat_id = message.chat.id.to_string();
         let user = self.ctx.user_model.find_one_by_open_id(open_id).await?;
 
         let result = self
@@ -127,7 +132,6 @@ impl Poller {
             .await;
         match result {
             Ok(_) => {
-                let chat_id = message.chat.id.to_string();
                 self.ctx
                     .transport_model
                     .update_chat_id(user.id, model::transport_type::TELEGRAM, chat_id.as_str())
@@ -145,7 +149,11 @@ impl Poller {
             },
         }
 
-        log::info!("message {:?}", message);
+        self.tg_transport.push(
+                chat_id.as_str(),
+                "",
+                "Your Telegram transport has been configured. You can now receive notifications from simple push service.",
+        ).await?;
 
         Ok(())
     }

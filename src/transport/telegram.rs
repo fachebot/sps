@@ -18,7 +18,8 @@ impl Telegram {
 struct SendMessage {
     chat_id: String,
     text: String,
-    parse_mode: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    parse_mode: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -30,10 +31,16 @@ struct ResponsePayload {
 #[async_trait]
 impl super::Transport for Telegram {
     async fn push(&self, chat: &str, title: &str, message: &str) -> Result<()> {
+        let text = if title.is_empty() {
+            format!("{}", message)
+        } else {
+            format!("[{}]\n\n{}", title, message)
+        };
+
         let data = &SendMessage {
+            text,
             chat_id: chat.into(),
-            text: format!("\\[*{}*\\]\n\n{}", title, message),
-            parse_mode: "MarkdownV2".into(),
+            parse_mode: None,
         };
 
         let mut res = match surf::post(&self.uri).body_json(data) {
