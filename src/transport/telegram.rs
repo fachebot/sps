@@ -2,16 +2,14 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-pub const TELEGRAM_API_ENDPOINT: &str = "https://api.telegram.org";
-
 pub struct Telegram {
     uri: String,
 }
 
 impl Telegram {
-    pub fn new(access_token: &str) -> Self {
+    pub fn new(url: &str, access_token: &str) -> Self {
         Telegram {
-            uri: format!("{}/bot{}/sendMessage", TELEGRAM_API_ENDPOINT, access_token),
+            uri: format!("{}bot{}/sendMessage", url, access_token),
         }
     }
 }
@@ -30,7 +28,7 @@ struct ResponsePayload {
 }
 
 #[async_trait]
-impl crate::transport::Transport for Telegram {
+impl super::Transport for Telegram {
     async fn push(&self, chat: &str, title: &str, message: &str) -> Result<()> {
         let data = &SendMessage {
             chat_id: chat.into(),

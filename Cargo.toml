@@ -23,3 +23,5 @@ sha2 = "0.10.2"
 ethers-core = "0.6.3"
 uuid = { version = "0.8.2", features = [ "v4" ] }
 rand = "0.8.5"
+log = { version = "0.4", features = ["std", "serde"] }
+simplelog = "0.11.2"

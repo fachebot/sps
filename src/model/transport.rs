@@ -74,4 +74,20 @@ impl TransportModel {
             .await?;
         Ok(transport)
     }
+
+    pub async fn update_chat_id(
+        &self,
+        user_id: i64,
+        transport_type: &str,
+        chat_id: &str,
+    ) -> Result<()> {
+        let query = r#"UPDATE "transport" SET "chat_id" = $1 WHERE "user_id" = $2 AND "type" = $3"#;
+        sqlx::query(query)
+            .bind(chat_id)
+            .bind(user_id)
+            .bind(transport_type)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
 }

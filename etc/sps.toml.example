@@ -7,4 +7,5 @@ access_secret = "5bffec4d-3bd7-47f7-b8a4-c11b2ed164d0"
 dsn = "postgres://postgres:postgres@localhost:5432/sps"
 
 [telegram]
+url = "https://api.telegram.org/"
 token = ""

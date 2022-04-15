@@ -2,6 +2,7 @@ use anyhow::Result;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use sqlx::{Pool, Postgres};
+use std::str::FromStr;
 
 #[derive(sqlx::FromRow)]
 #[sqlx(type_name = "user")]
@@ -49,6 +50,25 @@ impl UserModel {
             .fetch_one(&self.pool)
             .await?;
         Ok(row.0)
+    }
+
+    pub async fn find_one_by_open_id(&self, open_id: &str) -> Result<User> {
+        let open_id = uuid::Uuid::from_str(open_id)?;
+        let query = r#"SELECT * FROM "user" WHERE "open_id" = $1"#;
+        let user = sqlx::query_as(query)
+            .bind(open_id)
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(user)
+    }
+
+    pub async fn find_one_by_project_id(&self, project_id: &str) -> Result<User> {
+        let query = r#"SELECT * FROM "user" WHERE "project_id" = $1"#;
+        let user = sqlx::query_as(query)
+            .bind(project_id)
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(user)
     }
 
     pub async fn find_one_by_wallet_address(&self, wallet_address: &str) -> Result<User> {

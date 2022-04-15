@@ -16,6 +16,7 @@ pub struct Postgres {
 
 #[derive(Clone, Deserialize)]
 pub struct Telegram {
+    pub url: String,
     pub token: String,
 }
 
