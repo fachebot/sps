@@ -28,3 +28,14 @@ pub struct GetMeResponse {
     pub project_id: String,
     pub transports: Vec<Transport>,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct PushMessageRequest {
+    pub title: String,
+    pub content: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PushMessageResponse {
+    pub status: String,
+}

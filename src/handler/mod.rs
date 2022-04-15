@@ -17,6 +17,9 @@ pub fn register_handlers(app: &mut tide::Server<Context>) -> Result<()> {
 
     // No authentication required
     app.at("/api/auth").post(logic::auth);
+    app.at("/api/push/:project_id")
+        .get(logic::push_message)
+        .post(logic::push_message);
 
     Ok(())
 }

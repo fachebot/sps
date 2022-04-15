@@ -1,10 +1,12 @@
 pub mod message;
 pub mod task;
+pub mod transaction;
 pub mod transport;
 pub mod user;
 
 pub use message::*;
 pub use task::*;
+pub use transaction::*;
 pub use transport::*;
 pub use user::*;
 

@@ -54,7 +54,7 @@ impl TaskModel {
             .bind(data.state.clone())
             .bind(data.retry_count)
             .bind(&data.reason)
-            .bind(data.creation_time)
+            .bind(&data.creation_time)
             .fetch_one(&self.pool)
             .await?;
         Ok(row.0)
