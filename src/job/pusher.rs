@@ -1,11 +1,25 @@
-use crate::model::Task;
+use crate::model;
 use crate::service::Context;
+use crate::transport;
 use anyhow::{anyhow, Result};
 use async_std::{channel, channel::Receiver, channel::Sender, sync::Arc, task};
 use redis::aio::Connection;
 use redis::{AsyncCommands, RedisResult};
-use std::ops::{DerefMut, Index};
+use std::ops::DerefMut;
 use std::sync::atomic::{AtomicBool, Ordering};
+
+fn new_transporter(
+    ctx: &Arc<Context>,
+    name: &str,
+) -> Option<Box<dyn transport::Transport + Send + Sync>> {
+    return match name {
+        model::transport_type::TELEGRAM => Some(Box::new(transport::Telegram::new(
+            &ctx.conf.telegram.url,
+            &ctx.conf.telegram.token,
+        ))),
+        _ => None,
+    };
+}
 
 struct Worker {
     ctx: Arc<Context>,
@@ -31,9 +45,11 @@ impl Worker {
             }
 
             let task_id = data.unwrap();
+            log::debug!("[Worker] consume, task_id: {}", task_id);
+
             let task = self.ctx.task_model.find_one_by_id(task_id).await;
             if let Err(err) = task {
-                self.retry_task(&mut conn, task_id, err.to_string()).await;
+                self.retry_task(&mut conn, task_id, &err.to_string()).await;
                 continue;
             }
 
@@ -41,10 +57,10 @@ impl Worker {
         }
     }
 
-    async fn push(&self, conn: &mut Connection, task: Task) {
+    async fn push(&self, conn: &mut Connection, task: model::Task) {
         let message = self.ctx.message_model.find_one_by_id(task.message_id).await;
         if let Err(err) = message {
-            self.retry_task(conn, task.id, err.to_string()).await;
+            self.retry_task(conn, task.id, &err.to_string()).await;
             return;
         }
 
@@ -54,15 +70,64 @@ impl Worker {
             .find_one_by_id(task.transport)
             .await;
         if let Err(err) = transport {
-            self.retry_task(conn, task.id, err.to_string()).await;
+            self.retry_task(conn, task.id, &err.to_string()).await;
+            return;
+        }
+
+        let transport = transport.unwrap();
+        if transport.chat_id.is_none() {
+            self.skip_task(conn, task.id, "chat id is none").await;
+            return;
+        }
+
+        let transporter = new_transporter(&self.ctx, &transport.transport_type);
+        if transporter.is_none() {
+            self.skip_task(conn, task.id, "transport not found").await;
             return;
         }
 
         let message = message.unwrap();
-        let transport = transport.unwrap();
+        let chat_id = transport.chat_id.unwrap();
+        let transporter = transporter.unwrap();
+
+        let result = transporter
+            .push(&chat_id, &message.title, &message.content)
+            .await;
+        if let Err(err) = result {
+            self.retry_task(conn, task.id, &err.to_string()).await;
+            return;
+        }
+
+        log::debug!(
+            "[Worker] message delivered, message_id: {}, transport: {}",
+            message.id,
+            &transport.transport_type
+        );
+
+        if let Err(err) = self.ctx.task_model.set_done(task.id).await {
+            log::error!(
+                "[Worker] failed to set task state as done, task_id: {}, {}",
+                task.id,
+                err
+            )
+        }
     }
 
-    async fn retry_task(&self, conn: &mut Connection, task_id: i64, reason: String) {}
+    async fn skip_task(&self, _conn: &mut Connection, task_id: i64, reason: &str) {
+        log::warn!(
+            "[Worker] skip task, task_id: {}, reason: {}",
+            task_id,
+            reason
+        );
+    }
+
+    async fn retry_task(&self, _conn: &mut Connection, task_id: i64, reason: &str) {
+        log::warn!(
+            "[Worker] retry task, task_id: {}, reason: {}",
+            task_id,
+            reason
+        );
+    }
 }
 
 struct Poller {
@@ -88,7 +153,7 @@ impl Poller {
         Poller {
             ctx,
             next: 0,
-            senders: Vec::new(),
+            senders,
         }
     }
 
@@ -119,7 +184,7 @@ impl Poller {
                 continue;
             }
 
-            let result: RedisResult<Vec<i64>> = guard
+            let result: RedisResult<i64> = guard
                 .deref_mut()
                 .zrembyscore(queue_name.as_str(), 0, ts)
                 .await;
@@ -128,7 +193,7 @@ impl Poller {
             }
 
             for task_id in task_ids {
-                let result = self.senders.index(self.next).send(task_id).await;
+                let result = self.senders[self.next].send(task_id).await;
                 if let Err(err) = result {
                     log::error!(
                         "[Pusher] failed to assign task, task_id: {}, {}",

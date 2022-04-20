@@ -65,4 +65,15 @@ impl TaskModel {
         let task = sqlx::query_as(query).bind(id).fetch_one(&self.pool).await?;
         Ok(task)
     }
+
+    pub async fn set_done(&self, id: i64) -> Result<()> {
+        let query = r#"UPDATE "task" SET "state" = $1 WHERE "id" = $2"#;
+        sqlx::query(query)
+            .bind(self::state::DONE)
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
 }
