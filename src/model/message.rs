@@ -28,8 +28,8 @@ pub struct MessageModel {
 }
 
 impl MessageModel {
-    pub fn new(pool: &Pool<Postgres>) -> Self {
-        MessageModel { pool: pool.clone() }
+    pub fn new(pool: Pool<Postgres>) -> Self {
+        MessageModel { pool }
     }
 
     pub async fn insert(&self, data: &Message) -> Result<i64> {
@@ -42,6 +42,15 @@ impl MessageModel {
             .fetch_one(&self.pool)
             .await?;
         Ok(row.0)
+    }
+
+    pub async fn find_one_by_id(&self, id: i64) -> Result<Message> {
+        let query = r#"SELECT * FROM "message" WHERE "id" = $1"#;
+        let message = sqlx::query_as(query)
+            .bind(id)
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(message)
     }
 
     pub async fn find_all_by_user_id(&self, user_id: i64) -> Result<Vec<Message>> {

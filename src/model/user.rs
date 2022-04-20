@@ -23,8 +23,8 @@ impl User {
     pub fn new(wallet_address: &str) -> Self {
         User {
             id: 0,
-            project_id: gen_project_id(),
             open_id: uuid::Uuid::new_v4(),
+            project_id: gen_project_id(),
             wallet_address: String::from(wallet_address),
             creation_time: chrono::Utc::now(),
         }
@@ -36,8 +36,8 @@ pub struct UserModel {
 }
 
 impl UserModel {
-    pub fn new(pool: &Pool<Postgres>) -> Self {
-        UserModel { pool: pool.clone() }
+    pub fn new(pool: Pool<Postgres>) -> Self {
+        UserModel { pool }
     }
 
     pub async fn insert(&self, data: &User) -> Result<i64> {

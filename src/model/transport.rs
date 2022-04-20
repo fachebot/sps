@@ -13,6 +13,7 @@ pub struct Transport {
     #[sqlx(rename = "type")]
     pub transport_type: String,
     pub chat_id: Option<String>,
+    pub username: Option<String>,
     pub connected: bool,
     pub creation_time: chrono::DateTime<chrono::Utc>,
 }
@@ -24,6 +25,7 @@ impl Transport {
             user_id,
             transport_type: String::from(transport_type),
             chat_id: None,
+            username: None,
             connected: false,
             creation_time: chrono::Utc::now(),
         }
@@ -35,21 +37,31 @@ pub struct TransportModel {
 }
 
 impl TransportModel {
-    pub fn new(pool: &Pool<Postgres>) -> Self {
-        TransportModel { pool: pool.clone() }
+    pub fn new(pool: Pool<Postgres>) -> Self {
+        TransportModel { pool }
     }
 
     pub async fn insert(&self, data: &Transport) -> Result<i64> {
-        let query = r#"INSERT INTO "transport"("user_id", "type", "chat_id", "connected", "creation_time") VALUES($1, $2, $3, $4, $5) RETURNING "id""#;
+        let query = r#"INSERT INTO "transport"("user_id", "type", "chat_id", "username", "connected", "creation_time") VALUES($1, $2, $3, $4, $5, $6) RETURNING "id""#;
         let row: (i64,) = sqlx::query_as(query)
             .bind(data.user_id)
             .bind(&data.transport_type)
             .bind(&data.chat_id)
+            .bind(&data.username)
             .bind(&data.connected)
             .bind(&data.creation_time)
             .fetch_one(&self.pool)
             .await?;
         Ok(row.0)
+    }
+
+    pub async fn find_one_by_id(&self, id: i64) -> Result<Transport> {
+        let query = r#"SELECT * FROM "transport" WHERE "id" = $1"#;
+        let transport = sqlx::query_as(query)
+            .bind(id)
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(transport)
     }
 
     pub async fn find_all_by_user_id(&self, user_id: i64) -> Result<Vec<Transport>> {
@@ -78,12 +90,14 @@ impl TransportModel {
     pub async fn update_chat_id(
         &self,
         user_id: i64,
+        username: Option<String>,
         transport_type: &str,
         chat_id: &str,
     ) -> Result<()> {
-        let query = r#"UPDATE "transport" SET "chat_id" = $1 WHERE "user_id" = $2 AND "type" = $3"#;
+        let query = r#"UPDATE "transport" SET "chat_id" = $1, "username" = $2 WHERE "user_id" = $3 AND "type" = $4"#;
         sqlx::query(query)
             .bind(chat_id)
+            .bind(username)
             .bind(user_id)
             .bind(transport_type)
             .execute(&self.pool)

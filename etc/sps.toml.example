@@ -3,6 +3,10 @@ port = 8888
 access_expire = 3600
 access_secret = "5bffec4d-3bd7-47f7-b8a4-c11b2ed164d0"
 
+[redis]
+url = "redis://localhost:6379/0"
+queue_name = "sps_queue"
+
 [postgres]
 dsn = "postgres://postgres:postgres@localhost:5432/sps"
 

@@ -10,6 +10,12 @@ pub struct Server {
 }
 
 #[derive(Clone, Deserialize)]
+pub struct Redis {
+    pub url: String,
+    pub queue_name: String,
+}
+
+#[derive(Clone, Deserialize)]
 pub struct Postgres {
     pub dsn: String,
 }
@@ -23,6 +29,7 @@ pub struct Telegram {
 #[derive(Clone, Deserialize)]
 pub struct Config {
     pub server: Server,
+    pub redis: Redis,
     pub postgres: Postgres,
     pub telegram: Telegram,
 }

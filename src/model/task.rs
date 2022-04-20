@@ -41,8 +41,8 @@ pub struct TaskModel {
 }
 
 impl TaskModel {
-    pub fn new(pool: &Pool<Postgres>) -> Self {
-        TaskModel { pool: pool.clone() }
+    pub fn new(pool: Pool<Postgres>) -> Self {
+        TaskModel { pool }
     }
 
     pub async fn insert(&self, data: &Task) -> Result<i64> {

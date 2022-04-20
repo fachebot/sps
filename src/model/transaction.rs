@@ -8,7 +8,7 @@ pub async fn insert_message(
     title: &str,
     content: &str,
     transports: &[i64],
-) -> Result<()> {
+) -> Result<Vec<i64>> {
     let mut tx = pool.begin().await?;
     let creation_time = chrono::Utc::now();
 
@@ -24,9 +24,11 @@ pub async fn insert_message(
     let message_id = row.0;
     let retry_count = 0i32;
     let reason: Option<String> = None;
+
+    let mut ids = Vec::<i64>::new();
     for transport in transports {
-        let query = r#"INSERT INTO "task"("message_id", "user_id", "transport", "state", "retry_count", "reason", "creation_time") VALUES($1, $2, $3, $4, $5, $6, $7)"#;
-        sqlx::query(query)
+        let query = r#"INSERT INTO "task"("message_id", "user_id", "transport", "state", "retry_count", "reason", "creation_time") VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING "id""#;
+        let row: (i64,) = sqlx::query_as(query)
             .bind(message_id)
             .bind(user_id)
             .bind(*transport)
@@ -34,11 +36,13 @@ pub async fn insert_message(
             .bind(retry_count)
             .bind(&reason)
             .bind(&creation_time)
-            .execute(&mut tx)
+            .fetch_one(&mut tx)
             .await?;
+
+        ids.push(row.0);
     }
 
     tx.commit().await?;
 
-    Ok(())
+    Ok(ids)
 }

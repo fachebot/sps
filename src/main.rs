@@ -50,7 +50,10 @@ async fn main() -> Result<()> {
     let args = Args::parse();
     let c = config::must_load(&args.config).await;
 
-    let ctx: Context = Context::new(&c).await?;
+    let ctx = Context::make_pointer(&c).await?;
+    let pusher = job::Pusher::new(ctx.clone(), 12);
+    pusher.start()?;
+
     let tg_bot = job::TelegramBot::new(ctx.clone());
     tg_bot.start()?;
 

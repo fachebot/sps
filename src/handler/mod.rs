@@ -3,9 +3,10 @@ mod middleware;
 use crate::logic;
 use crate::service::Context;
 use anyhow::Result;
+use async_std::sync::Arc;
 use middleware::{JsonResponseMiddleware, JwtAuthMiddleware};
 
-pub fn register_handlers(app: &mut tide::Server<Context>) -> Result<()> {
+pub fn register_handlers(app: &mut tide::Server<Arc<Context>>) -> Result<()> {
     app.with(JsonResponseMiddleware::new());
     let access_secret = &app.state().conf.server.access_secret;
     let jwt_middleware = JwtAuthMiddleware::new(access_secret)?;

@@ -6,6 +6,7 @@ CREATE TABLE "transport" (
   "user_id" int8 NOT NULL,
   "type" varchar(16) NOT NULL,
   "chat_id" varchar(64),
+  "username" varchar (32),
   "connected" bool NOT NULL,
   "creation_time" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

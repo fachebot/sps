@@ -2,9 +2,12 @@ use crate::model;
 use crate::service::Context;
 use crate::types::{PushMessageRequest, PushMessageResponse};
 use anyhow::anyhow;
+use async_std::sync::Arc;
+use redis::AsyncCommands;
+use std::ops::DerefMut;
 use tide::{Body, Request, Response};
 
-pub async fn push_message(mut req: Request<Context>) -> tide::Result {
+pub async fn push_message(mut req: Request<Arc<Context>>) -> tide::Result {
     let data = match req.method() {
         http_types::Method::Get => req.query::<PushMessageRequest>()?,
         http_types::Method::Post => req.body_json::<PushMessageRequest>().await?,
@@ -12,6 +15,7 @@ pub async fn push_message(mut req: Request<Context>) -> tide::Result {
     };
     let project_id = req.param("project_id").unwrap();
 
+    // Save message & task
     let user = req
         .state()
         .user_model
@@ -24,7 +28,20 @@ pub async fn push_message(mut req: Request<Context>) -> tide::Result {
         .await?;
 
     let ids = transports.into_iter().map(|e| e.id).collect::<Vec<i64>>();
-    model::insert_message(&req.state().pool, user.id, &data.title, &data.content, &ids).await?;
+    let task_ids =
+        model::insert_message(&req.state().pool, user.id, &data.title, &data.content, &ids).await?;
+
+    // Adding to redis task queue
+    let ts = chrono::Utc::now().timestamp();
+    let items = task_ids
+        .into_iter()
+        .map(|task_id| (ts, task_id))
+        .collect::<Vec<(i64, i64)>>();
+    let mut guard = req.state().redis_connection.lock().await;
+    guard
+        .deref_mut()
+        .zadd_multiple(req.state().conf.redis.queue_name.as_str(), items.as_slice())
+        .await?;
 
     let res = PushMessageResponse {
         status: "queued".to_string(),

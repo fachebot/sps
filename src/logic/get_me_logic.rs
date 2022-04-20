@@ -1,8 +1,9 @@
 use crate::service::Context;
 use crate::types::{GetMeResponse, Transport};
+use async_std::sync::Arc;
 use tide::{Body, Request, Response};
 
-pub async fn get_me(req: Request<Context>) -> tide::Result {
+pub async fn get_me(req: Request<Arc<Context>>) -> tide::Result {
     let address = req.ext::<String>().unwrap();
 
     let user = req

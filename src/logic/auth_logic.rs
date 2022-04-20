@@ -1,6 +1,7 @@
 use crate::service::Context;
 use crate::types::*;
 use anyhow::Result;
+use async_std::sync::Arc;
 use ethers_core::types::{Address, Signature};
 use hmac::{Hmac, Mac};
 use jwt::SignWithKey;
@@ -22,7 +23,7 @@ fn verify_signature(address: &str, signature: &str, timestamp: i64) -> Result<()
     Ok(())
 }
 
-pub async fn auth(mut req: Request<Context>) -> tide::Result {
+pub async fn auth(mut req: Request<Arc<Context>>) -> tide::Result {
     let data: AuthRequest = req.body_json().await?;
 
     // Verify wallet signature

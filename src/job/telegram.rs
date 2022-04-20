@@ -2,12 +2,9 @@ use crate::model;
 use crate::service::Context;
 use crate::transport::{Telegram, Transport};
 use anyhow::{anyhow, Result};
-use async_std::task;
+use async_std::{sync::Arc, task};
 use serde::{Deserialize, Serialize};
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 #[derive(Default, Debug, Serialize)]
 struct GetUpdates {
@@ -51,13 +48,13 @@ struct ResponsePayload {
 
 struct Poller {
     uri: String,
-    ctx: Context,
+    ctx: Arc<Context>,
     offset: i32,
     tg_transport: Telegram,
 }
 
 impl Poller {
-    fn new(ctx: Context) -> Self {
+    fn new(ctx: Arc<Context>) -> Self {
         let base_url = &ctx.conf.telegram.url;
         let access_token = &ctx.conf.telegram.token;
         let uri = format!("{}bot{}/getUpdates", base_url, access_token);
@@ -81,7 +78,7 @@ impl Poller {
             data.offset = Some(self.offset);
         }
 
-        log::info!("[TelegramPoller] {:?}", data);
+        log::info!("[TelegramBot] {:?}", data);
 
         let mut res = match surf::post(&self.uri).body_json(&data) {
             Ok(req) => match req.await {
@@ -123,6 +120,7 @@ impl Poller {
 
         let open_id = &text["/start ".len()..];
         let chat_id = message.chat.id.to_string();
+        let username = message.chat.username.clone();
         let user = self.ctx.user_model.find_one_by_open_id(open_id).await?;
 
         let result = self
@@ -134,7 +132,12 @@ impl Poller {
             Ok(_) => {
                 self.ctx
                     .transport_model
-                    .update_chat_id(user.id, model::transport_type::TELEGRAM, chat_id.as_str())
+                    .update_chat_id(
+                        user.id,
+                        username,
+                        model::transport_type::TELEGRAM,
+                        chat_id.as_str(),
+                    )
                     .await?;
             }
             Err(err) => match model::is_not_found_record_err(&err) {
@@ -142,6 +145,7 @@ impl Poller {
                     let mut transport =
                         model::Transport::new(user.id, model::transport_type::TELEGRAM);
                     transport.connected = true;
+                    transport.username = message.chat.username.clone();
                     transport.chat_id = Some(message.chat.id.to_string());
                     self.ctx.transport_model.insert(&transport).await?;
                 }
@@ -161,13 +165,13 @@ impl Poller {
     async fn start_polling(&mut self, running: &AtomicBool) {
         running.store(true, Ordering::Release);
 
-        log::info!("[TelegramPoller] start polling");
+        log::info!("[TelegramBot] start polling");
 
         while running.load(Ordering::Acquire) {
             let updates = match self.get_updates().await {
                 Ok(updates) => updates,
                 Err(err) => {
-                    log::error!("[TelegramPoller] failed to getUpdates, {}", err.to_string());
+                    log::error!("[TelegramBot] failed to getUpdates, {}", err.to_string());
                     continue;
                 }
             };
@@ -183,12 +187,12 @@ impl Poller {
             }
         }
 
-        log::info!("[TelegramPoller] stop polling");
+        log::info!("[TelegramBot] stop polling");
     }
 }
 
 pub struct TelegramBot {
-    ctx: Context,
+    ctx: Arc<Context>,
     state: Arc<AtomicBool>,
 }
 
@@ -199,7 +203,7 @@ impl Drop for TelegramBot {
 }
 
 impl TelegramBot {
-    pub fn new(ctx: Context) -> Self {
+    pub fn new(ctx: Arc<Context>) -> Self {
         TelegramBot {
             ctx,
             state: Arc::new(AtomicBool::new(false)),
