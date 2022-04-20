@@ -1,5 +1,6 @@
 use anyhow::Result;
 use sqlx::{Pool, Postgres};
+use crate::model::Transport;
 
 pub mod state {
     pub const PENDING: &str = "pending";
@@ -14,7 +15,9 @@ pub struct Task {
     pub id: i64,
     pub message_id: i64,
     pub user_id: i64,
+    pub chat_id: String,
     pub transport: i64,
+    pub transport_type: String,
     pub state: String,
     pub retry_count: i32,
     pub reason: Option<String>,
@@ -22,12 +25,16 @@ pub struct Task {
 }
 
 impl Task {
-    pub fn new(message_id: i64, user_id: i64, transport: i64) -> Self {
+    pub fn new(message_id: i64, user_id: i64, transport: &Transport) -> Self {
+        let chat_id = transport.chat_id.as_ref().unwrap();
+
         Task {
             id: 0,
             message_id,
             user_id,
-            transport,
+            chat_id: chat_id.clone(),
+            transport: transport.id,
+            transport_type: transport.transport_type.clone(),
             state: self::state::PENDING.into(),
             retry_count: 0,
             reason: None,
@@ -46,11 +53,13 @@ impl TaskModel {
     }
 
     pub async fn insert(&self, data: &Task) -> Result<i64> {
-        let query = r#"INSERT INTO "task"("message_id", "user_id", "transport", "state", "retry_count", "reason", "creation_time") VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING "id""#;
+        let query = r#"INSERT INTO "task"("message_id", "user_id", "chat_id", "transport", "transport_type", "state", "retry_count", "reason", "creation_time") VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING "id""#;
         let row: (i64,) = sqlx::query_as(query)
             .bind(data.message_id)
             .bind(data.user_id)
+            .bind(&data.chat_id)
             .bind(data.transport)
+            .bind(&data.transport_type)
             .bind(data.state.clone())
             .bind(data.retry_count)
             .bind(&data.reason)

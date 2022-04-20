@@ -27,9 +27,14 @@ pub async fn push_message(mut req: Request<Arc<Context>>) -> tide::Result {
         .find_all_by_user_id(user.id)
         .await?;
 
-    let ids = transports.into_iter().map(|e| e.id).collect::<Vec<i64>>();
-    let task_ids =
-        model::insert_message(&req.state().pool, user.id, &data.title, &data.content, &ids).await?;
+    let task_ids = model::insert_message(
+        &req.state().pool,
+        user.id,
+        &data.title,
+        &data.content,
+        &transports,
+    )
+    .await?;
 
     // Adding to redis task queue
     let ts = chrono::Utc::now().timestamp();

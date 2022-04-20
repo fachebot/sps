@@ -64,34 +64,17 @@ impl Worker {
             return;
         }
 
-        let transport = self
-            .ctx
-            .transport_model
-            .find_one_by_id(task.transport)
-            .await;
-        if let Err(err) = transport {
-            self.retry_task(conn, task.id, &err.to_string()).await;
-            return;
-        }
-
-        let transport = transport.unwrap();
-        if transport.chat_id.is_none() {
-            self.skip_task(conn, task.id, "chat id is none").await;
-            return;
-        }
-
-        let transporter = new_transporter(&self.ctx, &transport.transport_type);
+        let transporter = new_transporter(&self.ctx, &task.transport_type);
         if transporter.is_none() {
             self.skip_task(conn, task.id, "transport not found").await;
             return;
         }
 
         let message = message.unwrap();
-        let chat_id = transport.chat_id.unwrap();
         let transporter = transporter.unwrap();
 
         let result = transporter
-            .push(&chat_id, &message.title, &message.content)
+            .push(&task.chat_id, &message.title, &message.content)
             .await;
         if let Err(err) = result {
             self.retry_task(conn, task.id, &err.to_string()).await;
@@ -101,7 +84,7 @@ impl Worker {
         log::debug!(
             "[Worker] message delivered, message_id: {}, transport: {}",
             message.id,
-            &transport.transport_type
+            &task.transport_type
         );
 
         if let Err(err) = self.ctx.task_model.set_done(task.id).await {

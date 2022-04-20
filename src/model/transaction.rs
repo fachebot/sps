@@ -1,4 +1,4 @@
-use crate::model::task;
+use crate::model::{task, Transport};
 use anyhow::Result;
 use sqlx::{Pool, Postgres};
 
@@ -7,7 +7,7 @@ pub async fn insert_message(
     user_id: i64,
     title: &str,
     content: &str,
-    transports: &[i64],
+    transports: &Vec<Transport>,
 ) -> Result<Vec<i64>> {
     let mut tx = pool.begin().await?;
     let creation_time = chrono::Utc::now();
@@ -27,11 +27,14 @@ pub async fn insert_message(
 
     let mut ids = Vec::<i64>::new();
     for transport in transports {
-        let query = r#"INSERT INTO "task"("message_id", "user_id", "transport", "state", "retry_count", "reason", "creation_time") VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING "id""#;
+        let chat_id = transport.chat_id.as_ref().unwrap();
+        let query = r#"INSERT INTO "task"("message_id", "user_id", "chat_id", "transport", "transport_type", "state", "retry_count", "reason", "creation_time") VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING "id""#;
         let row: (i64,) = sqlx::query_as(query)
             .bind(message_id)
             .bind(user_id)
-            .bind(*transport)
+            .bind(chat_id)
+            .bind(transport.id)
+            .bind(&transport.transport_type)
             .bind(task::state::PENDING)
             .bind(retry_count)
             .bind(&reason)
