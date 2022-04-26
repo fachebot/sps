@@ -3,6 +3,7 @@ use crate::service::Context;
 use crate::transport;
 use anyhow::{anyhow, Result};
 use async_std::{channel, channel::Receiver, channel::Sender, sync::Arc, task};
+use rand::{thread_rng, Rng};
 use redis::aio::Connection;
 use redis::{AsyncCommands, RedisResult};
 use std::ops::DerefMut;
@@ -49,7 +50,11 @@ impl Worker {
 
             let task = self.ctx.task_model.find_one_by_id(task_id).await;
             if let Err(err) = task {
-                self.retry_task(&mut conn, task_id, &err.to_string()).await;
+                log::error!(
+                    "[Worker] failed to find task by id, task_id: {}, reason: {}",
+                    task_id,
+                    err
+                );
                 continue;
             }
 
@@ -60,13 +65,13 @@ impl Worker {
     async fn push(&self, conn: &mut Connection, task: model::Task) {
         let message = self.ctx.message_model.find_one_by_id(task.message_id).await;
         if let Err(err) = message {
-            self.retry_task(conn, task.id, &err.to_string()).await;
+            self.retry_task(conn, &task, &err.to_string()).await;
             return;
         }
 
         let transporter = new_transporter(&self.ctx, &task.transport_type);
         if transporter.is_none() {
-            self.skip_task(conn, task.id, "transport not found").await;
+            self.skip_task(task.id, "transport not found").await;
             return;
         }
 
@@ -77,7 +82,7 @@ impl Worker {
             .push(&task.chat_id, &message.title, &message.content)
             .await;
         if let Err(err) = result {
-            self.retry_task(conn, task.id, &err.to_string()).await;
+            self.retry_task(conn, &task, &err.to_string()).await;
             return;
         }
 
@@ -96,20 +101,52 @@ impl Worker {
         }
     }
 
-    async fn skip_task(&self, _conn: &mut Connection, task_id: i64, reason: &str) {
-        log::warn!(
+    async fn skip_task(&self, task_id: i64, reason: &str) {
+        log::error!(
             "[Worker] skip task, task_id: {}, reason: {}",
             task_id,
             reason
         );
     }
 
-    async fn retry_task(&self, _conn: &mut Connection, task_id: i64, reason: &str) {
+    async fn retry_task(&self, conn: &mut Connection, task: &model::Task, reason: &str) {
         log::warn!(
             "[Worker] retry task, task_id: {}, reason: {}",
-            task_id,
+            task.id,
             reason
         );
+
+        let r = thread_rng().gen_range(0..30);
+        // Formula taken from https://github.com/mperham/sidekiq.
+        let s = task.retry_count.pow(4) + 15 + (r * (task.retry_count + 1));
+
+        let now = chrono::Utc::now().timestamp();
+        let key = &self.ctx.conf.redis.queue_name;
+        let result = conn
+            .zadd::<_, _, _, i32>(key.as_str(), task.id, now + i64::from(s))
+            .await;
+        if let Err(err) = result {
+            log::error!(
+                "[Worker] failed to retry task, task_id: {}, reason: {}",
+                task.id,
+                err
+            );
+            return;
+        }
+
+        let result = self
+            .ctx
+            .task_model
+            .update_retry_state(task.id, reason)
+            .await;
+        if let Err(err) = result {
+            log::error!(
+                "[Worker] failed to update retry state, task_id: {}, reason: {}",
+                task.id,
+                err
+            );
+            return;
+        }
     }
 }
 
@@ -155,7 +192,7 @@ impl Poller {
                 .zrangebyscore(queue_name.as_str(), 0, ts)
                 .await;
             if let Err(err) = result {
-                log::error!("[Pusher] redis read error, {}", err.to_string());
+                log::error!("[Pusher] redis read error, {}", err);
 
                 task::sleep(std::time::Duration::from_secs(1)).await;
                 continue;
@@ -172,7 +209,7 @@ impl Poller {
                 .zrembyscore(queue_name.as_str(), 0, ts)
                 .await;
             if let Err(err) = result {
-                log::error!("[Pusher] redis write error, {}", err.to_string());
+                log::error!("[Pusher] redis write error, {}", err);
             }
 
             for task_id in task_ids {
@@ -181,7 +218,7 @@ impl Poller {
                     log::error!(
                         "[Pusher] failed to assign task, task_id: {}, {}",
                         task_id,
-                        err.to_string()
+                        err
                     );
                 }
 

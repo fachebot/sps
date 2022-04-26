@@ -1,6 +1,6 @@
+use crate::model::Transport;
 use anyhow::Result;
 use sqlx::{Pool, Postgres};
-use crate::model::Transport;
 
 pub mod state {
     pub const PENDING: &str = "pending";
@@ -79,6 +79,22 @@ impl TaskModel {
         let query = r#"UPDATE "task" SET "state" = $1 WHERE "id" = $2"#;
         sqlx::query(query)
             .bind(self::state::DONE)
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn update_retry_state(&self, id: i64, reason: &str) -> Result<()> {
+        let reason = match reason.len() > 255 {
+            false => reason,
+            true => &reason[..255],
+        };
+
+        let query = r#"UPDATE "task" SET "retry_count" = "retry_count" + 1 AND "reason" = $1 WHERE "id" = $2"#;
+        sqlx::query(query)
+            .bind(reason)
             .bind(id)
             .execute(&self.pool)
             .await?;
